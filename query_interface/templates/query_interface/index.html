@@ -1,80 +1,147 @@
-<!-- query_interface/templates/query_interface/index.html -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NLP to SQL Query Interface</title>
+    <title>LexiBase - Natural Language Database Interface</title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-        body { padding: 2rem; background-color: #f8f9fa; }
-        .container { max-width: 900px; }
-        .card { margin-top: 2rem; }
-        .sql-query { 
-            background-color: #e9ecef; 
-            padding: 1rem; 
-            border-radius: .25rem; 
-            font-family: monospace; 
-            white-space: pre-wrap;
-            word-wrap: break-word;
+        :root {
+            --dark-bg: #1a1a2e;
+            --primary-card: #16213e;
+            --secondary-card: #0f3460;
+            --primary-accent: #e94560;
+            --text-color: #dcdcdc;
+            --placeholder-color: #6c757d;
         }
+        body { background-color: var(--dark-bg); color: var(--text-color); font-family: 'Poppins', sans-serif; padding: 2rem; transition: background-color 0.3s; }
+        .container { max-width: 960px; }
+        .main-title { font-weight: 600; color: #fff; }
+        .card { background-color: var(--primary-card); border: 1px solid var(--secondary-card); margin-top: 1.5rem; transition: all 0.3s ease; }
+        .form-control, .custom-file-label { background-color: var(--secondary-card); color: var(--text-color); border: 1px solid var(--dark-bg); }
+        .form-control::placeholder { color: var(--placeholder-color); }
+        .custom-file-input { color: transparent; } /* Hide default text */
+        .btn-primary { background-color: var(--primary-accent); border-color: var(--primary-accent); transition: all 0.3s; font-weight: 500;}
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-primary:disabled { background-color: var(--placeholder-color); border-color: var(--placeholder-color); }
+        #sql-output { background-color: #111; color: #4dffaf; font-family: 'Courier New', Courier, monospace; padding: 1.5rem; border-radius: 5px; white-space: pre-wrap; min-height: 80px; }
+        .fade-in { opacity: 0; animation: fadeInAnimation 0.5s ease-in-out forwards; }
+        @keyframes fadeInAnimation { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
+        .table { color: var(--text-color); }
+        .loader { display: none; margin-top: 1.5rem; padding: 1.5rem; background-color: var(--primary-card); border-radius: 5px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="text-center">
-            <h1 class="mb-4">Query Your Data with Plain English</h1>
-        </div>
+        <header class="text-center my-4">
+            <h1 class="main-title">LexiBase</h1>
+            <p class="text-muted">Your Intelligent Database Companion</p>
+        </header>
 
-        <form method="post" class="card p-4">
-            {% csrf_token %}
-            {{ form.as_p }}
-            <button type="submit" class="btn btn-primary btn-block mt-3">Submit Query</button>
-        </form>
-
-        {% if request.method == "POST" %}
-            <div class="card p-4">
-                <h4>Generated SQL Query:</h4>
-                {% if sql_query %}
-                    <pre class="sql-query">{{ sql_query }};</pre>
-                {% else %}
-                    <p class="text-muted">No SQL was generated.</p>
-                {% endif %}
-            </div>
-
-            <div class="card p-4">
-                <h4>Results:</h4>
-                {% if system_error %}
-                    <div class="alert alert-danger">{{ system_error }}</div>
-                {% elif results_data.error %}
-                    <div class="alert alert-warning">{{ results_data.error }}</div>
-                {% elif results_data.results %}
-                    <div class="table-responsive">
-                        <table class="table table-striped table-bordered">
-                            <thead class="thead-dark">
-                                <tr>
-                                    {% for col in results_data.columns %}
-                                        <th>{{ col }}</th>
-                                    {% endfor %}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in results_data.results %}
-                                <tr>
-                                    {% for cell in row %}
-                                        <td>{{ cell }}</td>
-                                    {% endfor %}
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                     <p class="text-muted">The query ran successfully but returned no results.</p>
-                {% endif %}
+        {% if db_name %}
+            <div class="alert alert-success text-center">
+                Active Database: <strong>{{ db_name }}</strong>. <a href="?new_session=true" class="alert-link">Upload a different database</a>.
             </div>
         {% endif %}
+
+        <main>
+            <form id="query-form" method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="card p-4">
+                    {% if not db_name %}
+                        <h5 class="text-center">Get Started</h5>
+                        <p class="text-muted text-center">Upload your SQLite database file to begin.</p>
+                        <div class="custom-file mb-3">
+                            {{ form.db_file }}
+                            <label class="custom-file-label" for="{{ form.db_file.id_for_label }}">Choose file...</label>
+                        </div>
+                    {% endif %}
+                    <div class="form-group mb-0">
+                        <label for="{{ form.query.id_for_label }}">Ask a question about your data</label>
+                        {{ form.query }}
+                    </div>
+                    <button type="submit" id="submit-button" class="btn btn-primary btn-lg mt-3" {% if not db_name %}disabled{% endif %}>
+                        Generate SQL
+                    </button>
+                </div>
+            </form>
+
+            <div id="loader" class="loader">
+                <div class="d-flex align-items-center">
+                    <div class="spinner-border text-light" role="status"></div>
+                    <strong class="ml-3">The AI is analyzing your request... This may take a moment.</strong>
+                </div>
+            </div>
+
+            {% if request.method == "POST" %}
+            <section id="output-section" class="mt-4">
+                <div class="card p-4 fade-in">
+                    <h5>Generated SQL Query</h5>
+                    <pre id="sql-output"></pre>
+                </div>
+                <div id="results-container" class="card p-4 fade-in" style="animation-delay: 0.2s;">
+                    <h5>Results</h5>
+                    {% if system_error %}<div class="alert alert-danger">{{ system_error }}</div>
+                    {% elif results_data.error %}<div class="alert alert-warning">{{ results_data.error }}</div>
+                    {% elif results_data.results %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>{% for col in results_data.columns %}<th>{{ col }}</th>{% endfor %}</tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in results_data.results %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% elif 'results' in results_data %}<p class="text-muted">The query ran successfully but returned no results.</p>
+                    {% endif %}
+                </div>
+            </section>
+            {% endif %}
+        </main>
     </div>
+
+    <script>
+        const sqlQuery = `{{ sql_query|escapejs }}`;
+
+        function typeWriter(element, text, speed) {
+            let i = 0;
+            element.innerHTML = "";
+            function type() {
+                if (i < text.length) {
+                    element.innerHTML += text.charAt(i); i++; setTimeout(type, speed);
+                }
+            }
+            type();
+        }
+
+        document.getElementById('query-form').addEventListener('submit', function() {
+            document.getElementById('loader').style.display = 'block';
+            const submitButton = document.getElementById('submit-button');
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+        });
+
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const sqlOutputElement = document.getElementById('sql-output');
+            if (sqlOutputElement && sqlQuery) {
+                typeWriter(sqlOutputElement, sqlQuery, 20);
+            }
+            const fileInput = document.querySelector('.custom-file-input');
+            if (fileInput) {
+                fileInput.addEventListener('change', (e) => {
+                    const fileName = e.target.files[0] ? e.target.files[0].name : "Choose file...";
+                    const nextSibling = e.target.nextElementSibling;
+                    nextSibling.innerText = fileName;
+                    // Enable submit button only when a file is chosen
+                    document.getElementById('submit-button').disabled = !e.target.files[0];
+                });
+            }
+        });
+    </script>
 </body>
 </html>
