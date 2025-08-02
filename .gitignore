@@ -1,5 +1,5 @@
 # Ignore model files
-*.gguf
+# *.gguf
 *.pt
 *.pth
 *.ckpt
