@@ -1,0 +1,52 @@
+# Ignore model files
+*.gguf
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.h5
+
+# Ignore data files
+*.csv
+*.tsv
+*.xlsx
+*.json
+*.xml
+
+# Ignore Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# Ignore Python cache and environment files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
+.env.*
+*.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/
+
+# Ignore logs and outputs
+*.log
+*.out
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore VSCode settings
+.vscode/
+
+# Ignore other common files
+*.sqlite3
+*.db
+*.sqlite
+*.bak
+*.tmp
+*.swp
+*.swo

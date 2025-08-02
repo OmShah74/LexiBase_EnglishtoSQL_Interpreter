@@ -1,0 +1,80 @@
+<!-- query_interface/templates/query_interface/index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NLP to SQL Query Interface</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding: 2rem; background-color: #f8f9fa; }
+        .container { max-width: 900px; }
+        .card { margin-top: 2rem; }
+        .sql-query { 
+            background-color: #e9ecef; 
+            padding: 1rem; 
+            border-radius: .25rem; 
+            font-family: monospace; 
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="text-center">
+            <h1 class="mb-4">Query Your Data with Plain English</h1>
+        </div>
+
+        <form method="post" class="card p-4">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn btn-primary btn-block mt-3">Submit Query</button>
+        </form>
+
+        {% if request.method == "POST" %}
+            <div class="card p-4">
+                <h4>Generated SQL Query:</h4>
+                {% if sql_query %}
+                    <pre class="sql-query">{{ sql_query }};</pre>
+                {% else %}
+                    <p class="text-muted">No SQL was generated.</p>
+                {% endif %}
+            </div>
+
+            <div class="card p-4">
+                <h4>Results:</h4>
+                {% if system_error %}
+                    <div class="alert alert-danger">{{ system_error }}</div>
+                {% elif results_data.error %}
+                    <div class="alert alert-warning">{{ results_data.error }}</div>
+                {% elif results_data.results %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-bordered">
+                            <thead class="thead-dark">
+                                <tr>
+                                    {% for col in results_data.columns %}
+                                        <th>{{ col }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in results_data.results %}
+                                <tr>
+                                    {% for cell in row %}
+                                        <td>{{ cell }}</td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                     <p class="text-muted">The query ran successfully but returned no results.</p>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
